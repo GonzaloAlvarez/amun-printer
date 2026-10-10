@@ -1,0 +1,6 @@
+{{ ansible_managed | comment }}
+# amun-printer: Pi OS ships Storage=volatile — a box that dies leaves no
+# evidence. Persist the journal, capped so an SSD/SD never fills with logs.
+[Journal]
+Storage=persistent
+SystemMaxUse={{ printer_journal_max_use }}

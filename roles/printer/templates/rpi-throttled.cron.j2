@@ -1,0 +1,5 @@
+{{ ansible_managed | comment }}
+# amun-printer: vcgencmd get_throttled → node_exporter textfile (rpi.prom)
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root RPI_TEXTFILE_DIR={{ printer_textfile_dir }} /usr/local/sbin/rpi-throttled.sh

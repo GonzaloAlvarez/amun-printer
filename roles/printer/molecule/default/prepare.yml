@@ -1,0 +1,20 @@
+---
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Refresh the apt cache (fresh image)
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+      register: prep_apt
+      retries: 5
+      delay: 5
+      until: prep_apt is success
+
+    # Stand-in for amun core's ufw role so the firewall branch is exercised.
+    - name: Install ufw
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+        install_recommends: false
+      become: true

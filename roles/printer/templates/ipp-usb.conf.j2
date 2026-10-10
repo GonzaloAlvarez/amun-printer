@@ -1,0 +1,22 @@
+{{ ansible_managed | comment }}
+# amun-printer: ipp-usb on the printer host. The CUPS/scan containers of
+# cn-printer run in a tailscale sidecar's network namespace, so loopback is
+# not shared with them — ipp-usb listens on every interface and UFW limits
+# :{{ printer_ippusb_port }} to the docker bridge range ({{ printer_docker_cidr }}).
+# DNS-SD is off: CUPS (shared via the host avahi) is the only printer the LAN
+# should discover, and every consumer uses a static http://…:{{ printer_ippusb_port }} URL.
+
+[network]
+  http-min-port = {{ printer_ippusb_port }}
+  http-max-port = 65535
+  dns-sd = {{ printer_ippusb_dnssd }}
+  interface = {{ printer_ippusb_interface }}
+  ipv6 = enable
+
+[logging]
+  device-log    = all
+  main-log      = debug
+  console-log   = debug
+  max-file-size    = 256K
+  max-backup-files = 5
+  console-color = enable

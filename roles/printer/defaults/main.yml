@@ -1,0 +1,69 @@
+---
+# amun-printer — host prerequisites for the printer.lan print/scan Pi.
+# Everything user-facing (CUPS, scanservjs, swis, exporters) lives in the
+# cn-printer compose stack; this role only owns what cannot run in a container.
+
+# Target user. Never hardcode gonzalo: kora tart VMs log in as `admin`,
+# QEMU cloud VMs as `kora`.
+printer_user: "{{ ansible_facts['user_id'] }}"
+
+# ── Shared scan tree on the (SSD) root filesystem ───────────────────────────
+# scanservjs + swis write here; a later Samba share and Stirling-PDF's
+# watched folder mount the same tree. Owned by printer_user (uid 1000 on a
+# fresh Pi OS) so SMB clients and the containers agree on ownership.
+printer_scans_dir: /srv/scans
+printer_scans_subdirs: [swis, inbox, processed]
+printer_scans_mode: "2775"
+
+# ── ipp-usb (host side) ─────────────────────────────────────────────────────
+# `all` binds :60000 on every interface so the compose stack reaches it on
+# the bridge gateway (loopback is per-netns). UFW keeps the LAN out — only
+# printer_docker_cidr may talk to printer_ippusb_port.
+printer_ippusb_interface: all
+printer_ippusb_dnssd: disable          # static URLs everywhere; no duplicate DNS-SD printer on the LAN
+printer_ippusb_port: 60000
+printer_docker_cidr: 172.16.0.0/12     # docker bridge subnets change across reboots; allow the /12
+printer_blacklist_usblp: true          # legacy raw-printer kernel driver fights ipp-usb for the interface
+
+# ── Observability plumbing ──────────────────────────────────────────────────
+# kaiser's Prometheus scrapes the host-network exporters directly.
+printer_monitor_from: [10.1.1.140]
+printer_exporter_ports: [9100, 9329]   # node-exporter-lan, cups-exporter (cn-printer)
+printer_textfile_dir: /var/lib/node_exporter/textfile_collector
+printer_throttle_textfile: true        # vcgencmd get_throttled → rpi.prom (Pi only)
+
+# ── Reliability (the 2026 reboot investigation) ─────────────────────────────
+# Pi OS trixie ships journald Storage=volatile; a box that dies for weeks
+# leaves no trace. Persist, capped.
+printer_journal_persistent: true
+printer_journal_max_use: 200M
+# Hardware watchdog: a hang becomes a reboot instead of a 3-week outage.
+# bcm2835 wdt max is 15 s. Pi only.
+printer_watchdog: true
+printer_watchdog_sec: 14s
+# Memory cgroup (Pi kernels disable it): needed for compose `mem_limit`
+# (Stirling-PDF later). Appends to cmdline.txt and schedules one reboot.
+printer_memory_cgroup: true
+printer_boot_firmware_dir: /boot/firmware
+printer_cmdline_params: ["cgroup_memory=1", "cgroup_enable=memory"]
+
+# ── Packages (recommends OFF everywhere) ────────────────────────────────────
+# cups-ipp-utils gives ipptool for diagnostics; sane-utils gives scanimage.
+# No host CUPS: cupsd runs in cn-printer and must own :631 alone.
+printer_packages:
+  - ipp-usb
+  - avahi-daemon
+  - avahi-utils
+  - sane-utils
+  - sane-airscan
+  - cups-ipp-utils
+  - curl
+printer_legacy_packages_absent:
+  - cups
+  - cups-daemon
+  - cups-browsed
+  - samba
+  - nfs-kernel-server
+  - netatalk
+  - dnsmasq
+  - hostapd

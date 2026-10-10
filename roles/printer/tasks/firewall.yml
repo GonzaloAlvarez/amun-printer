@@ -1,0 +1,31 @@
+---
+# amun core enables ufw default-deny with only :22 open. Docker-published
+# ports bypass ufw (DOCKER chain); host-network listeners do not. Open:
+#  - the LAN exporters for kaiser's Prometheus
+#  - ipp-usb for the compose bridge range only (the LAN must not see :60000)
+- name: Detect ufw
+  ansible.builtin.command: which ufw
+  register: printer_ufw
+  failed_when: false
+  changed_when: false
+
+- name: Allow kaiser to scrape the host-network exporters
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    from_ip: "{{ item.0 }}"
+    port: "{{ item.1 | string }}"
+    comment: "amun-printer: exporter scraped by kaiser prometheus"
+  loop: "{{ printer_monitor_from | product(printer_exporter_ports) | list }}"
+  become: true
+  when: printer_ufw.rc == 0
+
+- name: Allow the compose bridge range to reach ipp-usb
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    from_ip: "{{ printer_docker_cidr }}"
+    port: "{{ printer_ippusb_port | string }}"
+    comment: "amun-printer: ipp-usb for cn-printer containers"
+  become: true
+  when: printer_ufw.rc == 0

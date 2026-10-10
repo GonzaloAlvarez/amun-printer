@@ -1,0 +1,27 @@
+---
+- name: Enable the BCM2835 watchdog device tree parameter
+  ansible.builtin.lineinfile:
+    path: "{{ printer_boot_firmware_dir }}/config.txt"
+    regexp: '^#?\s*dtparam=watchdog='
+    line: dtparam=watchdog=on
+    insertafter: EOF
+  become: true
+
+- name: systemd manager drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: PID 1 feeds the watchdog
+  ansible.builtin.template:
+    src: watchdog.conf.j2
+    dest: /etc/systemd/system.conf.d/50-amun-printer-watchdog.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Reexec systemd

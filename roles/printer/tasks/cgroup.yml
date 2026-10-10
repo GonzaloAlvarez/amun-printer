@@ -1,0 +1,59 @@
+---
+# Raspberry Pi kernels default-disable the memory cgroup (even on cgroup v2);
+# compose `mem_limit` is silently ignored without it. Same recipe as
+# amun-kubernetes k3s_prereqs: strip cgroup_disable=memory, append the enable
+# params, back up to /root (FAT32 /boot rejects ':' in filenames), reboot once.
+- name: Check whether the memory cgroup controller is enabled
+  ansible.builtin.shell: |
+    set -o pipefail
+    if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+      grep -qw memory /sys/fs/cgroup/cgroup.controllers
+    else
+      [ "$(awk '$1=="memory"{print $4}' /proc/cgroups)" = "1" ]
+    fi
+  args:
+    executable: /bin/bash
+  register: printer_memcg
+  failed_when: false
+  changed_when: false
+
+- name: Read cmdline.txt
+  ansible.builtin.slurp:
+    src: "{{ printer_boot_firmware_dir }}/cmdline.txt"
+  register: printer_cmdline_file
+  when: printer_memcg.rc != 0
+
+- name: Compute the desired cmdline
+  ansible.builtin.set_fact:
+    printer_cmdline_current: "{{ (printer_cmdline_file.content | b64decode).strip() }}"
+  when: printer_memcg.rc != 0
+
+- name: Compute the desired cmdline (strip disable, append enable params)
+  ansible.builtin.set_fact:
+    printer_cmdline_desired: >-
+      {{ ((printer_cmdline_current | regex_replace('cgroup_disable=memory\b', '')).split()
+          + (printer_cmdline_params | reject('in', printer_cmdline_current) | list)) | join(' ') }}
+  when: printer_memcg.rc != 0
+
+- name: Back up cmdline.txt under /root
+  ansible.builtin.copy:
+    src: "{{ printer_boot_firmware_dir }}/cmdline.txt"
+    dest: /root/cmdline.txt.bak
+    remote_src: true
+    force: false
+    mode: "0644"
+  become: true
+  when: printer_memcg.rc != 0
+
+- name: Write cmdline.txt (single line) and schedule a reboot
+  ansible.builtin.copy:
+    dest: "{{ printer_boot_firmware_dir }}/cmdline.txt"
+    content: "{{ printer_cmdline_desired }}\n"
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when:
+    - printer_memcg.rc != 0
+    - printer_cmdline_desired | trim != printer_cmdline_current | trim
+  notify: Schedule reboot

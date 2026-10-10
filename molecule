@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR=$(mktemp -d)
+
+trap 'rm -rf "$VENV_DIR"' EXIT SIGINT SIGTERM
+
+python3 -m venv "$VENV_DIR"
+"$VENV_DIR/bin/pip" install --upgrade pip setuptools wheel
+"$VENV_DIR/bin/pip" install ansible molecule 'molecule-plugins[docker]'
+
+export PATH="$VENV_DIR/bin:$PATH"
+cd "$SCRIPT_DIR/roles/printer"
+molecule "${@:-test}"

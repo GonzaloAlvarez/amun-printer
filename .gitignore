@@ -1,0 +1,5 @@
+*.retry
+.molecule/
+.cache/
+galaxy_roles/
+ansible_collections/

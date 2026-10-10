@@ -1,0 +1,10 @@
+---
+- name: Shared scan tree
+  ansible.builtin.file:
+    path: "{{ printer_scans_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ printer_user }}"
+    group: "{{ printer_user }}"
+    mode: "{{ printer_scans_mode }}"
+  become: true
+  loop: "{{ [''] + printer_scans_subdirs }}"

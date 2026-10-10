@@ -1,0 +1,31 @@
+---
+- name: Configure ipp-usb (all interfaces, DNS-SD off)
+  ansible.builtin.template:
+    src: ipp-usb.conf.j2
+    dest: /etc/ipp-usb/ipp-usb.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart ipp-usb
+
+# The host avahi publishes the CUPS share (cn-printer mounts its D-Bus
+# socket) and gives the Pi its printer.local name.
+- name: Enable and start avahi-daemon
+  ansible.builtin.systemd:
+    name: avahi-daemon
+    enabled: true
+    state: started
+  become: true
+
+# ipp-usb.service is udev-triggered and has no [Install] section: never
+# `enable` it. Re-trigger USB add events so an already-attached printer
+# starts it now. No udev in the molecule container → tolerate failure.
+- name: Reload udev rules and re-trigger USB add events
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - udevadm control --reload-rules
+    - udevadm trigger --subsystem-match=usb --action=add
+  become: true
+  changed_when: false
+  failed_when: false

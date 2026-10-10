@@ -1,0 +1,123 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert host packages are installed
+      ansible.builtin.assert:
+        that:
+          - "'ipp-usb' in ansible_facts.packages"
+          - "'avahi-daemon' in ansible_facts.packages"
+          - "'avahi-utils' in ansible_facts.packages"
+          - "'sane-utils' in ansible_facts.packages"
+          - "'sane-airscan' in ansible_facts.packages"
+          - "'cups-ipp-utils' in ansible_facts.packages"
+        fail_msg: "a host package is missing"
+
+    - name: Assert the host runs NO CUPS and none of the legacy daemons
+      ansible.builtin.assert:
+        that:
+          - "'cups' not in ansible_facts.packages"
+          - "'cups-daemon' not in ansible_facts.packages"
+          - "'cups-browsed' not in ansible_facts.packages"
+          - "'samba' not in ansible_facts.packages"
+          - "'nfs-kernel-server' not in ansible_facts.packages"
+          - "'netatalk' not in ansible_facts.packages"
+          - "'dnsmasq' not in ansible_facts.packages"
+        fail_msg: "cupsd must only run inside cn-printer; legacy daemons must be gone"
+
+    - name: usblp blacklist
+      ansible.builtin.command: grep -qx 'blacklist usblp' /etc/modprobe.d/blacklist-usblp.conf
+      changed_when: false
+
+    - name: ipp-usb listens on all interfaces with DNS-SD off
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - grep -Eq '^\s*interface\s*=\s*all' /etc/ipp-usb/ipp-usb.conf
+        - grep -Eq '^\s*dns-sd\s*=\s*disable' /etc/ipp-usb/ipp-usb.conf
+        - grep -Eq '^\s*http-min-port\s*=\s*60000' /etc/ipp-usb/ipp-usb.conf
+      changed_when: false
+
+    - name: avahi-daemon enabled and active
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - systemctl is-enabled avahi-daemon
+        - systemctl is-active avahi-daemon
+      changed_when: false
+
+    - name: Persistent journal configured
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - grep -qx 'Storage=persistent' /etc/systemd/journald.conf.d/99-amun-printer.conf
+        - grep -qx 'SystemMaxUse=200M' /etc/systemd/journald.conf.d/99-amun-printer.conf
+        - test -d /var/log/journal
+      changed_when: false
+
+    - name: Stat the shared scan tree
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /srv/scans
+        - /srv/scans/swis
+        - /srv/scans/inbox
+        - /srv/scans/processed
+      register: scans_stat
+
+    - name: Assert the scan tree is a setgid group-writable directory tree
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+          - item.stat.mode == '2775'
+        fail_msg: "{{ item.item }} missing or wrong mode"
+      loop: "{{ scans_stat.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Stat the throttle metrics script
+      ansible.builtin.stat:
+        path: /usr/local/sbin/rpi-throttled.sh
+      register: throttle_stat
+
+    - name: Assert the throttle script is installed and executable
+      ansible.builtin.assert:
+        that:
+          - throttle_stat.stat.exists
+          - throttle_stat.stat.mode == '0755'
+
+    - name: Throttle script is a no-op without vcgencmd (exit 0, writes nothing)
+      ansible.builtin.command: /usr/local/sbin/rpi-throttled.sh
+      environment:
+        RPI_TEXTFILE_DIR: /tmp
+      changed_when: false
+
+    - name: Pi-only artifacts are absent in a container
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/cron.d/rpi-throttled
+        - /etc/systemd/system.conf.d/50-amun-printer-watchdog.conf
+        - /root/cmdline.txt.bak
+      register: pi_only_stat
+
+    - name: Assert Pi-only artifacts are absent
+      ansible.builtin.assert:
+        that: not item.stat.exists
+        fail_msg: "{{ item.item }} should only exist on a Raspberry Pi"
+      loop: "{{ pi_only_stat.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: ufw rules present (ufw installed by prepare.yml)
+      ansible.builtin.shell: |
+        set -o pipefail
+        ufw show added | grep -F "amun-printer" | grep -F "port 9100" | grep -q "from 10.1.1.140"
+        ufw show added | grep -F "amun-printer" | grep -F "port 9329" | grep -q "from 10.1.1.140"
+        ufw show added | grep -F "amun-printer" | grep -F "port 60000" | grep -q "from 172.16.0.0/12"
+      args:
+        executable: /bin/bash
+      become: true
+      changed_when: false

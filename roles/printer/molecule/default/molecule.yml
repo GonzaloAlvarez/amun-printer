@@ -1,0 +1,33 @@
+---
+# L1 covers Debian 12 in a systemd container (the closest reference for the
+# Pi fleet that Docker Desktop on Apple Silicon can run natively). Pi-only
+# branches (watchdog, memory cgroup, throttle cron) are skipped here because
+# there is no /boot/firmware/cmdline.txt and no vcgencmd; L2/L3 cover them.
+driver:
+  name: docker
+platforms:
+  - name: printer-debian
+    image: geerlingguy/docker-debian12-ansible:latest
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /usr/lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      roles_path: ${MOLECULE_PROJECT_DIRECTORY}/..
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

@@ -1,0 +1,49 @@
+---
+- name: Install host packages (recommends off)
+  ansible.builtin.apt:
+    name: "{{ printer_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    install_recommends: false
+  become: true
+  register: printer_apt
+  retries: 5
+  delay: 5
+  until: printer_apt is success
+
+# Negative guarantee: no host CUPS (cupsd runs in cn-printer and must own
+# :631 alone), no cups-browsed (would auto-create a duplicate PDF-passthrough
+# queue), none of plane.lan's legacy NAS/AP daemons.
+- name: Remove packages that must not run on this host
+  ansible.builtin.apt:
+    name: "{{ printer_legacy_packages_absent }}"
+    state: absent
+    purge: true
+    autoremove: false
+  become: true
+  register: printer_apt_absent
+  retries: 5
+  delay: 5
+  until: printer_apt_absent is success
+
+- name: /etc/modprobe.d exists (containers without kmod lack it)
+  ansible.builtin.file:
+    path: /etc/modprobe.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: printer_blacklist_usblp
+
+- name: Blacklist the legacy usblp driver
+  ansible.builtin.copy:
+    src: blacklist-usblp.conf
+    dest: /etc/modprobe.d/blacklist-usblp.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: printer_blacklist_usblp
+  notify: Unload usblp

@@ -1,0 +1,35 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Reexec systemd
+  # [Manager] settings (RuntimeWatchdogSec) are read on daemon-reexec.
+  ansible.builtin.command: systemctl daemon-reexec
+  become: true
+  changed_when: true
+
+- name: Restart ipp-usb
+  # udev-started unit without [Install]; only restart it if it is running.
+  ansible.builtin.command: systemctl try-restart ipp-usb.service
+  become: true
+  failed_when: false
+  changed_when: true
+
+- name: Unload usblp
+  ansible.builtin.command: modprobe -r usblp
+  become: true
+  failed_when: false
+  changed_when: false
+
+- name: Restart journald
+  ansible.builtin.shell: systemctl restart systemd-journald && journalctl --flush
+  become: true
+  changed_when: true
+
+- name: Schedule reboot
+  ansible.builtin.command:
+    argv: [shutdown, -r, "+1", "amun-printer - enabling the memory cgroup (cmdline.txt changed)"]
+  become: true
+  changed_when: true

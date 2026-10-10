@@ -1,0 +1,7 @@
+{{ ansible_managed | comment }}
+# amun-printer: feed the BCM2835 hardware watchdog from PID 1 so a kernel or
+# userspace hang reboots the Pi instead of leaving it dead until someone
+# notices (Aug–Sep 2026: 3.5 weeks). bcm2835_wdt caps the timeout at 15 s.
+[Manager]
+RuntimeWatchdogSec={{ printer_watchdog_sec }}
+RebootWatchdogSec=10min

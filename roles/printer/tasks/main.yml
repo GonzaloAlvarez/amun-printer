@@ -1,0 +1,53 @@
+---
+- name: amun-printer supports Debian-family hosts only
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] == 'Debian'
+    fail_msg: "amun-printer targets Raspberry Pi OS / Debian hosts"
+
+# Pi detection: the firmware boot partition + vcgencmd. Watchdog, memory
+# cgroup and throttle metrics are Pi-only; everything else runs anywhere.
+- name: Stat the firmware cmdline.txt
+  ansible.builtin.stat:
+    path: "{{ printer_boot_firmware_dir }}/cmdline.txt"
+  register: printer_cmdline_stat
+
+- name: Detect vcgencmd
+  ansible.builtin.command: which vcgencmd
+  register: printer_vcgencmd
+  failed_when: false
+  changed_when: false
+
+- name: Set printer_is_pi
+  ansible.builtin.set_fact:
+    printer_is_pi: "{{ printer_cmdline_stat.stat.exists and printer_vcgencmd.rc == 0 }}"
+
+- name: Packages, usblp blacklist
+  ansible.builtin.import_tasks: packages.yml
+
+- name: ipp-usb + avahi
+  ansible.builtin.import_tasks: ippusb.yml
+
+- name: Persistent journal
+  ansible.builtin.import_tasks: journal.yml
+  when: printer_journal_persistent
+
+- name: Hardware watchdog (Pi only)
+  ansible.builtin.import_tasks: watchdog.yml
+  when: printer_watchdog and printer_is_pi
+
+- name: Memory cgroup (Pi only)
+  ansible.builtin.import_tasks: cgroup.yml
+  when: printer_memory_cgroup and printer_is_pi
+
+- name: Throttle metrics
+  ansible.builtin.import_tasks: throttle.yml
+  when: printer_throttle_textfile
+
+- name: Shared scan tree
+  ansible.builtin.import_tasks: storage.yml
+
+- name: Firewall holes
+  ansible.builtin.import_tasks: firewall.yml
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers

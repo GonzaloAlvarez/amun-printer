@@ -1,0 +1,36 @@
+---
+- name: node_exporter textfile directory
+  ansible.builtin.file:
+    path: "{{ printer_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install rpi-throttled.sh
+  ansible.builtin.copy:
+    src: rpi-throttled.sh
+    dest: /usr/local/sbin/rpi-throttled.sh
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Cron the throttle metrics every minute (Pi only)
+  ansible.builtin.template:
+    src: rpi-throttled.cron.j2
+    dest: /etc/cron.d/rpi-throttled
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: printer_is_pi
+
+- name: Write rpi.prom now (Pi only)
+  ansible.builtin.command: /usr/local/sbin/rpi-throttled.sh
+  environment:
+    RPI_TEXTFILE_DIR: "{{ printer_textfile_dir }}"
+  become: true
+  changed_when: false
+  when: printer_is_pi
