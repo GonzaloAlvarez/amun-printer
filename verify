@@ -67,7 +67,8 @@ if [[ $HAVE_DEV -eq 1 ]]; then
     check "ipp-usb active"       "systemctl is-active --quiet ipp-usb"
     check "ipp-usb answers on :60000"  "curl -sf -m 5 -o /dev/null http://127.0.0.1:60000/"
     check "printer answers IPP Get-Printer-Attributes" "printf '{ OPERATION Get-Printer-Attributes\nGROUP operation-attributes-tag\nATTR charset attributes-charset utf-8\nATTR language attributes-natural-language en\nATTR uri printer-uri \$uri\nSTATUS successful-ok\n}\n' > /tmp/gpa.test && ipptool -T 8 ipp://127.0.0.1:60000/ipp/print /tmp/gpa.test"
-    check "eSCL capabilities reachable" "curl -sf -m 8 http://127.0.0.1:60000/eSCL/ScannerCapabilities | grep -qi scan"
+    # ipp-usb 302s requests whose Host is 127.0.0.1 or a hostname to http://localhost:60000; IP hosts answer directly
+    check "eSCL capabilities reachable" "curl -sfL -m 8 http://localhost:60000/eSCL/ScannerCapabilities | grep -qi scan"
 else
     skip "ipp-usb active / IPP / eSCL — no Brother (04f9) on the USB bus"
 fi
