@@ -47,7 +47,7 @@ echo
 
 IS_PI=0;  RUNNER "test -f /boot/firmware/cmdline.txt && command -v vcgencmd" >/dev/null 2>&1 && IS_PI=1
 HAVE_DEV=0; RUNNER "grep -lqx 04f9 /sys/bus/usb/devices/*/idVendor" >/dev/null 2>&1 && HAVE_DEV=1
-HAVE_UFW=0; RUNNER "command -v ufw" >/dev/null 2>&1 && HAVE_UFW=1
+HAVE_UFW=0; RUNNER "test -x /usr/sbin/ufw || command -v ufw" >/dev/null 2>&1 && HAVE_UFW=1   # /usr/sbin is not in a user PATH on Debian 12+
 echo "Raspberry Pi: $IS_PI   Brother USB attached: $HAVE_DEV   ufw: $HAVE_UFW"
 echo
 

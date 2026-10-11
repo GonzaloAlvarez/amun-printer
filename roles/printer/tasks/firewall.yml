@@ -3,11 +3,17 @@
 # ports bypass ufw (DOCKER chain); host-network listeners do not. Open:
 #  - the LAN exporters for kaiser's Prometheus
 #  - ipp-usb for the compose bridge range only (the LAN must not see :60000)
+# `which ufw` as the invoking user fails on Debian 12+/Pi OS: /usr/sbin is not
+# in a non-root PATH, so the holes were silently skipped on the first real
+# host. Probe the binary itself.
 - name: Detect ufw
-  ansible.builtin.command: which ufw
-  register: printer_ufw
-  failed_when: false
-  changed_when: false
+  ansible.builtin.stat:
+    path: /usr/sbin/ufw
+  register: printer_ufw_bin
+
+- name: Set ufw presence
+  ansible.builtin.set_fact:
+    printer_ufw: "{{ {'rc': (0 if printer_ufw_bin.stat.exists else 1)} }}"
 
 - name: Allow kaiser to scrape the host-network exporters
   community.general.ufw:
