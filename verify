@@ -102,10 +102,10 @@ check "/srv/scans/{swis,inbox,processed}" "test -d /srv/scans/swis && test -d /s
 echo
 echo "Firewall:"
 if [[ $HAVE_UFW -eq 1 ]]; then
-    check "ufw: 9100 from 10.1.1.140"   "sudo -n ufw status | grep -E '^9100/tcp\s+ALLOW IN\s+10\.1\.1\.140'"
-    check "ufw: 9329 from 10.1.1.140"   "sudo -n ufw status | grep -E '^9329/tcp\s+ALLOW IN\s+10\.1\.1\.140'"
-    check "ufw: 60000 from 172.16.0.0/12" "sudo -n ufw status | grep -E '^60000/tcp\s+ALLOW IN\s+172\.16\.0\.0/12'"
-    check "ufw: no LAN hole on 60000"   "! sudo -n ufw status | grep -E '^60000/tcp\s+ALLOW IN\s+(Anywhere|10\.)'"
+    check "ufw: 9100 from 10.1.1.140"   "sudo -n ufw status | grep -E '^9100/tcp\s+ALLOW( IN)?\s+10\.1\.1\.140'"
+    check "ufw: 9329 from 10.1.1.140"   "sudo -n ufw status | grep -E '^9329/tcp\s+ALLOW( IN)?\s+10\.1\.1\.140'"
+    check "ufw: 60000 from 172.16.0.0/12" "sudo -n ufw status | grep -E '^60000/tcp\s+ALLOW( IN)?\s+172\.16\.0\.0/12'"
+    check "ufw: no LAN hole on 60000"   "! sudo -n ufw status | grep -E '^60000/tcp\s+ALLOW( IN)?\s+(Anywhere|10\.)'"
 else
     skip "ufw rules — ufw not installed"
 fi
