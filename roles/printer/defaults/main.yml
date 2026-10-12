@@ -1,6 +1,6 @@
 ---
 # amun-printer — host prerequisites for the printer.lan print/scan Pi.
-# Everything user-facing (CUPS, scanservjs, swis, exporters) lives in the
+# Everything user-facing (CUPS, scanservjs, exporters) lives in the
 # cn-printer compose stack; this role only owns what cannot run in a container.
 
 # Target user. Never hardcode gonzalo: kora tart VMs log in as `admin`,
@@ -8,11 +8,11 @@
 printer_user: "{{ ansible_facts['user_id'] }}"
 
 # ── Shared scan tree on the (SSD) root filesystem ───────────────────────────
-# scanservjs + swis write here; a later Samba share and Stirling-PDF's
+# scanservjs writes here; a later Samba share and Stirling-PDF's
 # watched folder mount the same tree. Owned by printer_user (uid 1000 on a
 # fresh Pi OS) so SMB clients and the containers agree on ownership.
 printer_scans_dir: /srv/scans
-printer_scans_subdirs: [swis, inbox, processed]
+printer_scans_subdirs: [inbox, processed]
 printer_scans_mode: "2775"
 
 # ── ipp-usb (host side) ─────────────────────────────────────────────────────

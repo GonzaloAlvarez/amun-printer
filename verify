@@ -98,7 +98,7 @@ echo
 echo "Storage:"
 check "/srv/scans owned by $TARGET_USER" "test \"\$(stat -c %U /srv/scans)\" = '$TARGET_USER'"
 check "/srv/scans mode 2775"        "test \"\$(stat -c %a /srv/scans)\" = '2775'"
-check "/srv/scans/{swis,inbox,processed}" "test -d /srv/scans/swis && test -d /srv/scans/inbox && test -d /srv/scans/processed"
+check "/srv/scans/{inbox,processed}" "test -d /srv/scans/inbox && test -d /srv/scans/processed"
 
 echo
 echo "Firewall:"

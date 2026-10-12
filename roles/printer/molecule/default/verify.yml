@@ -61,7 +61,6 @@
         path: "{{ item }}"
       loop:
         - /srv/scans
-        - /srv/scans/swis
         - /srv/scans/inbox
         - /srv/scans/processed
       register: scans_stat

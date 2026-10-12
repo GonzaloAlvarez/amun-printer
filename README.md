@@ -1,6 +1,6 @@
 # Amun Printer
 
-**amun-printer** is a plugin for [amun](https://github.com/GonzaloAlvarez/amun) that prepares the `printer.lan` Raspberry Pi — the USB print/scan server for the Brother MFC-L2750DW — at the **host** level. Everything a user touches (CUPS, the scanservjs and swis web UIs, exporters, log shipping) runs in Docker from the [cn-printer](https://github.com/GonzaloAlvarez/cn-printer) stack; this role only owns what cannot live in a container.
+**amun-printer** is a plugin for [amun](https://github.com/GonzaloAlvarez/amun) that prepares the `printer.lan` Raspberry Pi — the USB print/scan server for the Brother MFC-L2750DW — at the **host** level. Everything a user touches (CUPS, the scanservjs web UI, exporters, log shipping) runs in Docker from the [cn-printer](https://github.com/GonzaloAlvarez/cn-printer) stack; this role only owns what cannot live in a container.
 
 Why a host role at all: the printer is reached over IPP-over-USB. `ipp-usb` must own the USB interface (udev-started, kernel `usblp` blacklisted) and expose IPP + eSCL on `:60000`, so one daemon serves both printing and scanning. The 2026 incidents behind the other tasks: CUPS on raw `usb://` fought ipp-usb for the device (queue stuck, scanner dead), and the box rebooted silently for months under power dips without a persistent journal to prove it.
 
@@ -32,7 +32,7 @@ Idempotent on re-run. The only reboot path is the memory-cgroup `cmdline.txt` ed
 6. Pi only: BCM2835 hardware watchdog (`dtparam=watchdog=on`, `RuntimeWatchdogSec=14s` via a `system.conf.d` drop-in) so a hang reboots instead of waiting weeks for a power cycle.
 7. Pi only: memory cgroup (`cgroup_memory=1 cgroup_enable=memory` appended to `/boot/firmware/cmdline.txt`, backup in `/root/cmdline.txt.bak`), so compose `mem_limit` works (Stirling-PDF).
 8. `/usr/local/sbin/rpi-throttled.sh` + a per-minute `/etc/cron.d/rpi-throttled` (Pi only) exporting `vcgencmd get_throttled` as node_exporter textfile metrics (`rpi_undervoltage_now`, `rpi_undervoltage_occurred`, `rpi_throttled_*`, `rpi_soc_temp_celsius`, `rpi_core_volts`) into `/var/lib/node_exporter/textfile_collector/rpi.prom`. kaiser alerts on them.
-9. `/srv/scans/{swis,inbox,processed}` owned by the invoking user, mode `2775` — the shared tree for scanservjs, swis, and later Samba and Stirling-PDF.
+9. `/srv/scans/{inbox,processed}` owned by the invoking user, mode `2775` — the shared tree for scanservjs and later Samba and Stirling-PDF.
 10. ufw (when present): `9100,9329/tcp` from kaiser `10.1.1.140` (node-exporter-lan, cups-exporter), `60000/tcp` from `172.16.0.0/12` (compose bridges → ipp-usb), `80,443/tcp` from anywhere (cn-printer's host-network `traefik-lan` serving `https://scan.print.lan`; step-ca validates HTTP-01 from pki). Nothing else — the stack's other LAN ports are Docker-published and bypass ufw.
 
 ## Variables
@@ -40,7 +40,7 @@ Idempotent on re-run. The only reboot path is the memory-cgroup `cmdline.txt` ed
 | Var | Default | What |
 |---|---|---|
 | `printer_user` | `ansible_facts['user_id']` | Owner of `/srv/scans`. Never hardcoded: kora VMs log in as `admin`/`kora`. |
-| `printer_scans_dir` / `printer_scans_subdirs` / `printer_scans_mode` | `/srv/scans` / `[swis, inbox, processed]` / `2775` | Shared scan tree. |
+| `printer_scans_dir` / `printer_scans_subdirs` / `printer_scans_mode` | `/srv/scans` / `[inbox, processed]` / `2775` | Shared scan tree. |
 | `printer_ippusb_interface` / `printer_ippusb_dnssd` / `printer_ippusb_port` | `all` / `disable` / `60000` | ipp-usb listener. |
 | `printer_docker_cidr` | `172.16.0.0/12` | Allowed source for `:60000` (bridge subnets move across reboots). |
 | `printer_blacklist_usblp` | `true` | `/etc/modprobe.d/blacklist-usblp.conf`. |
