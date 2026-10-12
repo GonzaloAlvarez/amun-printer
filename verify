@@ -107,6 +107,8 @@ if [[ $HAVE_UFW -eq 1 ]]; then
     check "ufw: 9329 from 10.1.1.140"   "sudo -n ufw status | grep -E '^9329/tcp\s+ALLOW( IN)?\s+10\.1\.1\.140'"
     check "ufw: 60000 from 172.16.0.0/12" "sudo -n ufw status | grep -E '^60000/tcp\s+ALLOW( IN)?\s+172\.16\.0\.0/12'"
     check "ufw: no LAN hole on 60000"   "! sudo -n ufw status | grep -E '^60000/tcp\s+ALLOW( IN)?\s+(Anywhere|10\.)'"
+    check "ufw: 80 open (traefik-lan, step-ca HTTP-01)" "sudo -n ufw status | grep -E '^80/tcp\s+ALLOW( IN)?\s+Anywhere'"
+    check "ufw: 443 open (traefik-lan)"  "sudo -n ufw status | grep -E '^443/tcp\s+ALLOW( IN)?\s+Anywhere'"
 else
     skip "ufw rules — ufw not installed"
 fi

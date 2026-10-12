@@ -3,6 +3,8 @@
 # ports bypass ufw (DOCKER chain); host-network listeners do not. Open:
 #  - the LAN exporters for kaiser's Prometheus
 #  - ipp-usb for the compose bridge range only (the LAN must not see :60000)
+#  - 80/443 for the stack's host-network Traefik (https://scan.print.lan;
+#    step-ca HTTP-01 arrives from pki, clients from every VLAN)
 # `which ufw` as the invoking user fails on Debian 12+/Pi OS: /usr/sbin is not
 # in a non-root PATH, so the holes were silently skipped on the first real
 # host. Probe the binary itself.
@@ -33,5 +35,15 @@
     from_ip: "{{ printer_docker_cidr }}"
     port: "{{ printer_ippusb_port | string }}"
     comment: "amun-printer: ipp-usb for cn-printer containers"
+  become: true
+  when: printer_ufw.rc == 0
+
+- name: Allow the LAN and step-ca HTTP-01 to reach the host-network Traefik
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "{{ item | string }}"
+    comment: "amun-printer: traefik-lan (scan.print.lan) for cn-printer"
+  loop: "{{ printer_web_ports }}"
   become: true
   when: printer_ufw.rc == 0

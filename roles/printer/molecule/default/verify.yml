@@ -117,6 +117,9 @@
         ufw show added | grep -F "amun-printer" | grep -F "port 9100" | grep -q "from 10.1.1.140"
         ufw show added | grep -F "amun-printer" | grep -F "port 9329" | grep -q "from 10.1.1.140"
         ufw show added | grep -F "amun-printer" | grep -F "port 60000" | grep -q "from 172.16.0.0/12"
+        # any-source rules print in the short form (ufw allow 80/tcp comment ...)
+        ufw show added | grep -F "amun-printer: traefik-lan" | grep -Fq "allow 80/tcp"
+        ufw show added | grep -F "amun-printer: traefik-lan" | grep -Fq "allow 443/tcp"
       args:
         executable: /bin/bash
       become: true

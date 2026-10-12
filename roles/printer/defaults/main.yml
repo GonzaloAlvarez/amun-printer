@@ -29,6 +29,10 @@ printer_blacklist_usblp: true          # legacy raw-printer kernel driver fights
 # kaiser's Prometheus scrapes the host-network exporters directly.
 printer_monitor_from: [10.1.1.140]
 printer_exporter_ports: [9100, 9329]   # node-exporter-lan, cups-exporter (cn-printer)
+# cn-printer's host-network traefik-lan (https://scan.print.lan, step-ca leaf)
+# owns 80/443. Host-network listeners do not bypass ufw, and step-ca's
+# HTTP-01 validation arrives from pki, so both ports are open to any source.
+printer_web_ports: [80, 443]
 printer_textfile_dir: /var/lib/node_exporter/textfile_collector
 printer_throttle_textfile: true        # vcgencmd get_throttled → rpi.prom (Pi only)
 

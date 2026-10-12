@@ -33,7 +33,7 @@ Idempotent on re-run. The only reboot path is the memory-cgroup `cmdline.txt` ed
 7. Pi only: memory cgroup (`cgroup_memory=1 cgroup_enable=memory` appended to `/boot/firmware/cmdline.txt`, backup in `/root/cmdline.txt.bak`), so compose `mem_limit` works (Stirling-PDF).
 8. `/usr/local/sbin/rpi-throttled.sh` + a per-minute `/etc/cron.d/rpi-throttled` (Pi only) exporting `vcgencmd get_throttled` as node_exporter textfile metrics (`rpi_undervoltage_now`, `rpi_undervoltage_occurred`, `rpi_throttled_*`, `rpi_soc_temp_celsius`, `rpi_core_volts`) into `/var/lib/node_exporter/textfile_collector/rpi.prom`. kaiser alerts on them.
 9. `/srv/scans/{swis,inbox,processed}` owned by the invoking user, mode `2775` — the shared tree for scanservjs, swis, and later Samba and Stirling-PDF.
-10. ufw (when present): `9100,9329/tcp` from kaiser `10.1.1.140` (node-exporter-lan, cups-exporter), `60000/tcp` from `172.16.0.0/12` (compose bridges → ipp-usb). Nothing else — the stack's LAN ports are Docker-published and bypass ufw.
+10. ufw (when present): `9100,9329/tcp` from kaiser `10.1.1.140` (node-exporter-lan, cups-exporter), `60000/tcp` from `172.16.0.0/12` (compose bridges → ipp-usb), `80,443/tcp` from anywhere (cn-printer's host-network `traefik-lan` serving `https://scan.print.lan`; step-ca validates HTTP-01 from pki). Nothing else — the stack's other LAN ports are Docker-published and bypass ufw.
 
 ## Variables
 
@@ -45,6 +45,7 @@ Idempotent on re-run. The only reboot path is the memory-cgroup `cmdline.txt` ed
 | `printer_docker_cidr` | `172.16.0.0/12` | Allowed source for `:60000` (bridge subnets move across reboots). |
 | `printer_blacklist_usblp` | `true` | `/etc/modprobe.d/blacklist-usblp.conf`. |
 | `printer_monitor_from` / `printer_exporter_ports` | `[10.1.1.140]` / `[9100, 9329]` | kaiser → exporter holes. |
+| `printer_web_ports` | `[80, 443]` | holes for the stack's host-network Traefik (`scan.print.lan`). |
 | `printer_textfile_dir` / `printer_throttle_textfile` | `/var/lib/node_exporter/textfile_collector` / `true` | Throttle metrics. |
 | `printer_journal_persistent` / `printer_journal_max_use` | `true` / `200M` | journald. |
 | `printer_watchdog` / `printer_watchdog_sec` | `true` / `14s` | Hardware watchdog (Pi only; bcm2835 max 15 s). |
